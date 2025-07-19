@@ -363,3 +363,143 @@ return isValid && isNotExpired;
 JWT kullanımı hakkında:
 Şimdi, eğer başka sağlayıcılar kullanıyorsanız, o zaman elbette bir veritabanı ve kullanıcı oturumu ekleyebilirsiniz. Bu gerçekten hangi kimlik doğrulama sağlayıcısını kullandığınıza bağlıdır Örneğin, size gönderilen sihirli bağlantıyı içeren bir e-posta aldığınız e-posta kimlik doğrulama sağlayıcısını kullanıyorsanız, e-postaların depolanacağı bir veritabanı eklemeniz gerekir ve JWT kullanmanıza gerek yoktur.
 https://next-auth.js.org/configuration/options#session
+
+## useSession vs getSession Arasındaki Farklar
+
+### **useSession** (React Hook)
+
+**Kullanım Yeri:** Client-side React components
+**Tip:** React Hook
+**Reactive:** Evet - session değişikliklerini otomatik takip eder
+
+```javascript
+import { useSession } from 'next-auth/react';
+
+function MyComponent() {
+  const { data: session, status } = useSession();
+
+  if (status === 'loading') return <p>Loading...</p>;
+  if (status === 'unauthenticated') return <p>Not logged in</p>;
+
+  return <p>Welcome {session.user.email}!</p>;
+}
+```
+
+**Özellikler:**
+
+- ✅ **Real-time updates:** Session değiştiğinde component re-render olur
+- ✅ **Loading states:** Loading durumunu handle eder
+- ✅ **Type safety:** TypeScript desteği
+- ❌ **Sadece React components'te kullanılabilir**
+
+---
+
+### **getSession** (Function)
+
+**Kullanım Yeri:** Her yerde (utility functions, API routes, vs.)
+**Tip:** Async function
+**Reactive:** Hayır - manuel çağırmanız gerekir
+
+```javascript
+import { getSession } from 'next-auth/react';
+
+// Client-side utility function'da
+async function fetchUserData() {
+  const session = await getSession();
+  if (!session) return null;
+
+  return fetch('/api/user-data', {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
+}
+
+// API route'da
+export default async function handler(req, res) {
+  const session = await getSession({ req });
+  if (!session) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  // ...
+}
+```
+
+**Özellikler:**
+
+- ✅ **Flexible:** React dışında da kullanılabilir
+- ✅ **Server-side:** API routes'ta kullanılabilir
+- ❌ **Manual:** Değişiklikleri otomatik takip etmez
+- ❌ **No loading states:** Loading durumunu kendimiz handle etmeliyiz
+
+---
+
+### **Praktik Kullanım Senaryoları:**
+
+#### **useSession Kullan:**
+
+- React component'lerde session durumu göstermek için
+- Navigation bar'da login/logout durumu
+- Conditional rendering için
+
+```javascript
+function Navigation() {
+  const { data: session, status } = useSession();
+
+  return (
+    <nav>
+      {status === 'loading' && <span>Loading...</span>}
+      {session ? (
+        <button onClick={() => signOut()}>Logout</button>
+      ) : (
+        <button onClick={() => signIn()}>Login</button>
+      )}
+    </nav>
+  );
+}
+```
+
+#### **getSession Kullan:**
+
+- API calls öncesi session check
+- Utility functions'larda
+- Server-side operations'da
+
+```javascript
+// Utility function
+const protectedApiCall = async (url) => {
+  const session = await getSession();
+  if (!session) throw new Error('Not authenticated');
+
+  return fetch(url, {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
+};
+
+// API route
+export default async function handler(req, res) {
+  const session = await getSession({ req });
+  if (!session) return res.status(401).end();
+
+  // Protected logic here
+}
+```
+
+---
+
+### **Performans ve Best Practices:**
+
+1. **useSession:** Component seviyesinde kullan, SessionProvider ile sarılmış olmalı
+2. **getSession:** Sadece gerektiğinde çağır, cache yapısını kullan
+3. **Server-side:** `getServerSession()` kullanmayı tercih et (Next.js 13+)
+
+---
+
+### **Özet Tablo:**
+
+| Özellik         | useSession       | getSession |
+| --------------- | ---------------- | ---------- |
+| **Kullanım**    | React components | Her yerde  |
+| **Reactive**    | ✅ Otomatik      | ❌ Manuel  |
+| **Loading**     | ✅ Built-in      | ❌ Manuel  |
+| **Server-side** | ❌               | ✅         |
+| **Performance** | Optimized        | On-demand  |
+| **Type Safety** | ✅               | ✅         |
