@@ -1,10 +1,15 @@
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import classes from './main-navigation.module.css';
 
 function MainNavigation() {
   const { data: session, loading } = useSession();
   const isLoggedIn = !!session;
+
+  function logoutHandler() {
+    signOut(); // bu fonk. cookileri temizler ve kullanıcıyı oturumdan çıkarır
+    console.log('User logged out');
+  }
 
   return (
     <header className={classes.header}>
@@ -26,7 +31,7 @@ function MainNavigation() {
           )}
           {isLoggedIn && (
             <li>
-              <button>Logout</button>
+              <button onClick={logoutHandler}>Logout</button>
             </li>
           )}
         </ul>
